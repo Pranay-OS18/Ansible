@@ -1,5 +1,5 @@
-*/ This configuration will install all required dependencies to setup kubernetes on Ubuntu machines.
-It needs to be run on Master as well as Workers. /*
+/* This configuration will install all required dependencies to setup kubernetes on Ubuntu machines.
+It needs to be run on Master as well as Workers. */
 
 ---
 - name: Configure K8s Dependencies
