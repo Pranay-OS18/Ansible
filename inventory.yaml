@@ -1,0 +1,27 @@
+all:
+  hosts:
+    Jenkins-Controller:
+      ansible_host: 192.168.1.32
+    K8s-Control-Plane:
+      ansible_host: 192.168.1.159
+    Jenkins-Slave:
+      ansible_host: 192.168.2.119
+    K8s-Slave-01:
+      ansible_host: 192.168.2.64
+    K8s-Slave-02:
+      ansible_host: 192.168.2.78
+
+  children:
+    K8s-Servers:
+      hosts:
+        K8s-Control-Plane:
+        K8s-Slave-01:
+        K8s-Slave-02:
+    K8s-Slaves:
+      hosts:
+        K8s-Slave-01:
+        K8s-Slave-02:
+    Jenkins-Servers:
+      hosts:
+        Jenkins-Controller:
+        Jenkins-Slave:
