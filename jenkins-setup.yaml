@@ -30,3 +30,18 @@
       service:
         name: jenkins
         enabled: yes
+
+
+
+
+- name: Configure Jenkins Slave
+  hosts: Jenkins-Slave
+  become: yes
+  tasks:
+  - name: Update Packages
+    apt:
+      update_cache: yes
+  - name: Install Java 17
+    apt:
+      name: openjdk-17-jdk
+      state: present
