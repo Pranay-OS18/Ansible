@@ -1,0 +1,168 @@
+*/ This configuration will install all required dependencies to setup kubernetes on Ubuntu machines.
+It needs to be run on Master as well as Workers. /*
+
+---
+- name: Configure K8s Dependencies
+  hosts: #All Nodes (Master & Workers)
+  become: yes
+  tasks:
+  - name: Update Packages
+    apt:
+      update_cache: yes
+
+  - name: Disable Swap (KubeADM Requirement)
+    shell: |
+      swapoff -a
+
+  - name: Disable SWAP in fstab
+    replace:
+      path: /etc/fstab
+      regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+      replace: '# \1'
+
+  - name: Create Empty File - Containerd Module
+    copy:
+      content: ""
+      dest: /etc/modules-load.d/k8s.conf
+
+  - name: Configure Containerd Modules
+    blockinfile:
+      path: /etc/modules-load.d/k8s.conf
+      block: |
+        overlay
+        br_netfilter
+
+  - name: Create Empty File - Sysctl Parameters
+    copy:
+      content: ""
+      dest: /etc/sysctl.d/k8s.conf
+
+  - name: Sysctl Parameter
+    lineinfile:
+      path: /etc/sysctl.d/k8s.conf
+      line: "{{ item }}"
+    with_items:
+    - 'net.bridge.bridge-nf-call-iptables  = 1'
+    - 'net.bridge.bridge-nf-call-ip6tables = 1'
+    - 'net.ipv4.ip_forward                 = 1'
+
+  - name: Apply Sysctl Parameters
+    command: sysctl --system
+
+  - name: load br_netfilter kernel module
+    modprobe:
+      name: br_netfilter
+      state: present
+
+  - name: set bridge-nf-call-iptables
+    sysctl:
+      name: net.bridge.bridge-nf-call-iptables
+      value: 1
+
+  - name: set ip_forward
+    sysctl:
+      name: net.ipv4.ip_forward
+      value: 1
+
+  - name: Install Packages
+    apt:
+      name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - apt-transport-https
+      - software-properties-common
+      state: present
+
+  - name: Create directory for Docker's GPG key
+    file:
+      path: /etc/apt/keyrings
+      state: directory
+      mode: '0755'
+
+  - name: Add Docker GPG Keys
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      keyring: /etc/apt/keyrings/docker.gpg
+      state: present
+
+  - name: Add Docker Repo
+    apt_repository:
+      repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} jammy stable"
+      state: present
+
+  - name: Update Packages
+    apt:
+      update_cache: yes
+
+  - name: Install Docker Engine
+    apt:
+      name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      state: present
+
+  - name: Enable and Start Docker services
+    systemd:
+      name: "{{ item }}"
+      enabled: true
+      state: started
+    loop:
+    - docker.service
+    - containerd.service
+
+  - name: Create Containerd Directory
+    file:
+      path: /etc/containerd
+      state: directory
+
+  - name: Add Containerd Config
+    shell: /usr/bin/containerd config default > /etc/containerd/config.toml
+
+  - name: Configure CGroup
+    lineinfile:
+      path: /etc/containerd/config.toml
+      regexp: '            SystemdCgroup = false'
+      line: '            SystemdCgroup = true'
+
+  - name: Enable And Restart Containerd
+    systemd:
+      name: containerd
+      state: restarted
+      enabled: yes
+      daemon-reload: yes
+
+  - name: Add Kubernetes Keys
+    get_url:
+      url: https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key
+      dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+      mode: '0644'
+
+  - name: Add Kubernetes Repo
+    apt_repository:
+      repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /"
+      state: present
+      update_cache: yes
+
+  - name: Install Kubelet
+    apt:
+      name: kubelet=1.29.*
+      state: present
+      update_cache: true
+
+  - name: Install Kubeadm
+    apt:
+      name: kubeadm=1.29.*
+      state: present
+
+  - name: Enable the Kubelet service
+    service:
+      name: kubelet
+      enabled: yes
+  - name: install Kubectl
+    apt:
+      name: kubectl=1.29.*
+      state: present
