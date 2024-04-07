@@ -1,4 +1,4 @@
-/* Configuration to be run on Master and Slave join nodes.
+/* Configuration to be run on Master and Slave to join nodes.
 Configure the hosts column accordingly.*/
 
 ---
